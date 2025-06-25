@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <meta th:if="${session.token == null}" http-equiv="refresh" content="0;url=/login"/>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    keyframes: {
+                        fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.4s ease-out forwards'
+                    }
+                }
+            }
+        };
+    </script>
+</head>
+<body class="h-full overflow-hidden">
+
+<div th:if="${session.token != null}" class="flex h-full animate-fade-in">
+    <!-- Sidebar -->
+    <aside class="hidden lg:flex lg:flex-col lg:w-1/5 bg-white border-r text-gray-700 p-6">
+        <div class="mb-8">
+            <h1 class="text-2xl font-bold">My Dashboard</h1>
+        </div>
+        <nav class="flex-1 space-y-4 text-sm">
+            <a href="#" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Overview</a>
+            <a href="#" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Settings</a>
+        </nav>
+        <a th:href="@{/logout}" class="mt-auto block py-2 px-4 rounded text-red-600 hover:bg-red-50 transition text-center">Logout</a>
+    </aside>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col">
+
+        <!-- Top Navbar -->
+        <header class="flex items-center justify-between bg-white border-b px-6 py-4">
+            <div class="flex items-center space-x-4">
+                <button class="lg:hidden text-gray-600 hover:text-gray-800 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                    </svg>
+                </button>
+                <h2 class="text-lg font-semibold text-gray-800">Welcome, <span th:text="${session.user}"></span></h2>
+            </div>
+            <div class="flex items-center space-x-4">
+                <input type="text" placeholder="Search..." class="hidden md:block px-3 py-1 border border-gray-300 rounded transition focus:ring-2 focus:ring-indigo-300"/>
+                <button class="relative text-gray-600 hover:text-gray-800 transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="absolute top-0 right-0 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                </button>
+                <button class="flex items-center space-x-2 focus:outline-none transition">
+                    <img src="https://i.pravatar.cc/32" class="w-8 h-8 rounded-full" alt="avatar"/>
+                    <span class="hidden sm:block text-gray-700">Profile</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Scrollable Main Area -->
+        <main class="p-6 overflow-auto space-y-8 animate-fade-in">
+
+            <!-- Metric Cards -->
+            <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Active Projects</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900">8</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">New Messages</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900">23</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Server Uptime</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900">99.9%</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">New Signups</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900">57</p>
+                </div>
+            </section>
+
+            <!-- Chart & Table -->
+            <section class="grid gap-6 lg:grid-cols-3">
+                <div class="col-span-full lg:col-span-2 bg-white p-6 rounded-lg border">
+                    <h3 class="text-lg font-medium text-gray-700">Event Processing Graph</h3>
+                    <canvas id="eventsChart" class="mt-4"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-lg border">
+                    <h3 class="text-lg font-medium text-gray-700">Account information</h3>
+                    <div class="mt-4 text-sm text-gray-800">
+                        <p><strong>ID:</strong> <span th:text="${session.userId}"></span></p>
+                        <p><strong>Active User Roles:</strong></p>
+                        <ul class="list-disc list-inside ml-4">
+                            <li th:each="role : ${session.roles}" th:text="${role}"></li>
+                            <!-- if roles is an array of objects, e.g. RoleDto, use th:text="${role.name}" -->
+                        </ul>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- Chart.js Initialization -->
+            <script>
+                document.addEventListener('DOMContentLoaded', () => {
+                    const ctx = document.getElementById('eventsChart').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'Processed Events',
+                                data: [12000, 15000, 14000, 17000, 19000, 22000],
+                                borderColor: '#6366F1',
+                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                                tension: 0.4,
+                                pointRadius: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: { grid: { display: false }, ticks: { color: '#6B7280' } },
+                                y: { grid: { color: '#E5E7EB' }, ticks: { color: '#6B7280' } }
+                            },
+                            animation: { duration: 400 }
+                        }
+                    });
+                });
+            </script>
+
+            <!-- Quick Actions & Widgets -->
+            <section class="grid gap-6 lg:grid-cols-3">
+                <div class="bg-white p-6 rounded-lg border">
+                    <h3 class="text-lg font-medium text-gray-700">Quick Actions</h3>
+                    <div class="mt-4 space-y-3">
+                        <button class="w-full py-2 bg-indigo-600 text-white rounded transition hover:bg-indigo-500">New Project</button>
+                        <button class="w-full py-2 bg-gray-800 text-white rounded transition hover:bg-gray-700">Send Message</button>
+                        <button class="w-full py-2 bg-yellow-500 text-white rounded transition hover:bg-yellow-400">Generate Report</button>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg border">
+                    <h3 class="text-lg font-medium text-gray-700">Profile Summary</h3>
+                    <div class="mt-4 flex items-center space-x-4">
+                        <img src="https://i.pravatar.cc/48" class="w-12 h-12 rounded-full" alt="avatar"/>
+                        <div>
+                            <p class="font-semibold text-gray-900">User Name</p>
+                            <p class="text-sm text-gray-500">user@example.com</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg border">
+                    <h3 class="text-lg font-medium text-gray-700">Storage Usage</h3>
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2.5">
+                            <div class="bg-indigo-600 h-2.5 rounded-full" style="width: 65%;"></div>
+                        </div>
+                        <p class="mt-2 text-sm text-gray-500">65% used of 10GB</p>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+</div>
+
+</body>
+</html>
