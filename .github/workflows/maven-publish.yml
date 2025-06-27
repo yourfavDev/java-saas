@@ -21,6 +21,7 @@ jobs:
         distribution: 'temurin'
         server-id: github           # matches your pom’s <distributionManagement><repository><id>
         settings-path: ~/.m2        # location for settings.xml
+        
     - name: Purge old auth cache
       run: |
         rm -rf ~/.m2/repository/com/libraries/auth
