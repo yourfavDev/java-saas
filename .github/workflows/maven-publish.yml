@@ -32,7 +32,7 @@ jobs:
           <servers>
             <server>
               <id>github</id>
-              <username>${{ github.actor }}</username>
+              <username>${PRIVATE_REPO_USERNAME}</username>
               <password>${GITHUB_TOKEN}</password>
             </server>
           </servers>
