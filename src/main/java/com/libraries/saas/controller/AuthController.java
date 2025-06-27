@@ -1,9 +1,10 @@
 package com.libraries.saas.controller;
 
 import com.libraries.auth.dto.LoginRequest;
-import com.libraries.auth.dto.TokenResponse;
-import com.libraries.auth.dto.UserInfoDto;
 import com.libraries.saas.services.AuthService;
+import io.sentry.Sentry;
+import io.sentry.spring.jakarta.tracing.SentrySpan;
+import io.sentry.spring.tracing.SentryTransaction;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

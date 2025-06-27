@@ -72,20 +72,20 @@
             <!-- Metric Cards -->
             <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
-                    <h3 class="text-xs font-medium text-gray-500 uppercase">Active Projects</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900">8</p>
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Processed Jobs</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.itemCount}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
-                    <h3 class="text-xs font-medium text-gray-500 uppercase">New Messages</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900">23</p>
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Table Size</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.tableSizeKbytes + 'Kb'}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
-                    <h3 class="text-xs font-medium text-gray-500 uppercase">Server Uptime</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900">99.9%</p>
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Last Job</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.lastProcessedTimestamp}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
-                    <h3 class="text-xs font-medium text-gray-500 uppercase">New Signups</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900">57</p>
+                    <h3 class="text-xs font-medium text-gray-500 uppercase">Error Messages</h3>
+                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.errors}"></p>
                 </div>
             </section>
 

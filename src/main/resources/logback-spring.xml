@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender for standard logs -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Sentry appender for ERROR-level events with hard-coded DSN -->
+    <appender name="SENTRY" class="io.sentry.logback.SentryAppender">
+        <!-- Use <property> so Logback recognizes it -->
+        <property name="dsn" value="https://faabb4ff0891e0aae12fc71a20929dde@o4509037894828032.ingest.de.sentry.io/4509037896532048"/>
+        <encoder>
+            <pattern>%d{ISO8601} %-5level [%thread] %logger{36} - %msg%n</pattern>
+        </encoder>
+        <minimumEventLevel>ERROR</minimumEventLevel>
+    </appender>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="SENTRY" />
+    </root>
+</configuration>
