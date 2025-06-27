@@ -29,11 +29,6 @@ jobs:
         <settings>
           <servers>
             <server>
-              <id>private-repo</id>
-              <username>${PRIVATE_REPO_USERNAME}</username>
-              <password>${PRIVATE_REPO_TOKEN}</password>
-            </server>
-            <server>
               <id>github</id>
               <username>${GITHUB_ACTOR}</username>
               <password>${GITHUB_TOKEN}</password>
