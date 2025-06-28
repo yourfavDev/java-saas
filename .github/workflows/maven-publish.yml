@@ -19,9 +19,7 @@ jobs:
       with:
         java-version: '21'
         distribution: 'temurin'
-        server-id: github           # matches your pom’s <distributionManagement><repository><id>
-        settings-path: ~/.m2        # location for settings.xml
-        
+        settings-path: ~/.m2
 
     - name: Configure Maven auth
       run: |
@@ -31,22 +29,23 @@ jobs:
         <settings>
           <servers>
             <server>
+              <id>private-repo</id>
+              <username>${{ secrets.PRIVATE_REPO_USERNAME }}</username>
+              <password>${{ secrets.PRIVATE_REPO_TOKEN }}</password>
+            </server>
+            <server>
               <id>github</id>
-              <username>${PRIVATE_REPO_USERNAME}</username>
-              <password>${GITHUB_TOKEN}</password>
+              <username>${{ github.actor }}</username>
+              <password>${{ github.token }}</password>
             </server>
           </servers>
         </settings>
         EOF
-      env:
-        PRIVATE_REPO_USERNAME: ${{ secrets.PRIVATE_REPO_USERNAME }}
-        PRIVATE_REPO_TOKEN:      ${{ secrets.PRIVATE_REPO_TOKEN }}
-        GITHUB_TOKEN:            ${{ github.token }}
 
-    - name: Build with Maven
-      run: mvn -U -B package --file pom.xml
+    - name: Build with Maven (force updates)
+      run: mvn -U -B clean package --file pom.xml
 
-    - name: Publish to GitHub Packages Apache Maven
-      run: mvn deploy --file pom.xml
+    - name: Publish to GitHub Packages
+      run: mvn -U deploy --file pom.xml
       env:
         GITHUB_TOKEN: ${{ github.token }}
