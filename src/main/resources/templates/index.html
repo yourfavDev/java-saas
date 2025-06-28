@@ -89,88 +89,67 @@
                 </div>
             </section>
 
-            <!-- Chart & Table -->
-            <section class="grid gap-6 lg:grid-cols-3">
-                <div class="col-span-full lg:col-span-2 bg-white p-6 rounded-lg border">
-                    <h3 class="text-lg font-medium text-gray-700">Event Processing Graph</h3>
-                    <canvas id="eventsChart" class="mt-4"></canvas>
+            <!-- Command Palette Overlay -->
+            <div id="cmd-palette" class="fixed inset-0 hidden items-start justify-center p-6 bg-black bg-opacity-50 z-50">
+                <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+                    <input id="cmd-input"
+                           type="text"
+                           placeholder="Type a command… (e.g. “Overview”)"
+                           class="w-full px-4 py-2 border-b border-gray-200 dark:border-gray-700 focus:outline-none bg-transparent text-gray-900 dark:text-gray-100"
+                    />
+                    <ul id="cmd-list" class="max-h-60 overflow-auto">
+                        <!-- JS will inject <li> items here -->
+                    </ul>
                 </div>
-                <div class="bg-white p-6 rounded-lg border">
-                    <h3 class="text-lg font-medium text-gray-700">Account information</h3>
-                    <div class="mt-4 text-sm text-gray-800">
-                        <p><strong>ID:</strong> <span th:text="${session.userId}"></span></p>
-                        <p><strong>Active User Roles:</strong></p>
-                        <ul class="list-disc list-inside ml-4">
-                            <li th:each="role : ${session.roles}" th:text="${role}"></li>
-                            <!-- if roles is an array of objects, e.g. RoleDto, use th:text="${role.name}" -->
-                        </ul>
-                    </div>
-                </div>
+            </div>
 
-            </section>
-
-            <!-- Chart.js Initialization -->
             <script>
-                document.addEventListener('DOMContentLoaded', () => {
-                    const ctx = document.getElementById('eventsChart').getContext('2d');
-                    new Chart(ctx, {
-                        type: 'line',
-                        data: {
-                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                            datasets: [{
-                                label: 'Processed Events',
-                                data: [12000, 15000, 14000, 17000, 19000, 22000],
-                                borderColor: '#6366F1',
-                                backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                                tension: 0.4,
-                                pointRadius: 3
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: { display: false }
-                            },
-                            scales: {
-                                x: { grid: { display: false }, ticks: { color: '#6B7280' } },
-                                y: { grid: { color: '#E5E7EB' }, ticks: { color: '#6B7280' } }
-                            },
-                            animation: { duration: 400 }
+                const commands = [
+                    { name: 'Overview',    href: '#overview' },
+                    { name: 'Settings',    href: '#settings' },
+                    { name: 'New Project', href: '#new-project' },
+                    // …add your own
+                ];
+                const palette = document.getElementById('cmd-palette');
+                const input   = document.getElementById('cmd-input');
+                const list    = document.getElementById('cmd-list');
+
+                // Build list items
+                function refreshList(filter = '') {
+                    list.innerHTML = '';
+                    commands
+                        .filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
+                        .forEach(c => {
+                            const li = document.createElement('li');
+                            li.className = 'px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer';
+                            li.textContent = c.name;
+                            li.onclick = () => window.location = c.href;
+                            list.appendChild(li);
+                        });
+                }
+
+                // Toggle palette on Cmd+K / Ctrl+K
+                document.addEventListener('keydown', e => {
+                    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+                        e.preventDefault();
+                        palette.classList.toggle('hidden');
+                        if (!palette.classList.contains('hidden')) {
+                            input.focus();
+                            refreshList();
                         }
-                    });
+                    }
+                    // Close on Escape
+                    if (e.key === 'Escape' && !palette.classList.contains('hidden')) {
+                        palette.classList.add('hidden');
+                    }
+                });
+
+                // Filter as you type
+                input.addEventListener('input', () => {
+                    refreshList(input.value);
                 });
             </script>
 
-            <!-- Quick Actions & Widgets -->
-            <section class="grid gap-6 lg:grid-cols-3">
-                <div class="bg-white p-6 rounded-lg border">
-                    <h3 class="text-lg font-medium text-gray-700">Quick Actions</h3>
-                    <div class="mt-4 space-y-3">
-                        <button class="w-full py-2 bg-indigo-600 text-white rounded transition hover:bg-indigo-500">New Project</button>
-                        <button class="w-full py-2 bg-gray-800 text-white rounded transition hover:bg-gray-700">Send Message</button>
-                        <button class="w-full py-2 bg-yellow-500 text-white rounded transition hover:bg-yellow-400">Generate Report</button>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg border">
-                    <h3 class="text-lg font-medium text-gray-700">Profile Summary</h3>
-                    <div class="mt-4 flex items-center space-x-4">
-                        <img src="https://i.pravatar.cc/48" class="w-12 h-12 rounded-full" alt="avatar"/>
-                        <div>
-                            <p class="font-semibold text-gray-900">User Name</p>
-                            <p class="text-sm text-gray-500">user@example.com</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-lg border">
-                    <h3 class="text-lg font-medium text-gray-700">Storage Usage</h3>
-                    <div class="mt-4">
-                        <div class="w-full bg-gray-200 rounded-full h-2.5">
-                            <div class="bg-indigo-600 h-2.5 rounded-full" style="width: 65%;"></div>
-                        </div>
-                        <p class="mt-2 text-sm text-gray-500">65% used of 10GB</p>
-                    </div>
-                </div>
-            </section>
 
         </main>
     </div>
