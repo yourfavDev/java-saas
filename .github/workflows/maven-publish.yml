@@ -4,48 +4,55 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write   # needed to upload assets
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-    - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Set up JDK 21
-      uses: actions/setup-java@v4
-      with:
-        java-version: '21'
-        distribution: 'temurin'
-        settings-path: ~/.m2
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          settings-path: ~/.m2
 
-    - name: Configure Maven auth
-      run: |
-        rm -rf ~/.m2/repository/com/libraries/auth
-        mkdir -p ~/.m2
-        cat > ~/.m2/settings.xml <<EOF
-        <settings>
-          <servers>
-            <server>
-              <id>private-repo</id>
-              <username>${{ secrets.PRIVATE_REPO_USERNAME }}</username>
-              <password>${{ secrets.PRIVATE_REPO_TOKEN }}</password>
-            </server>
-            <server>
-              <id>github</id>
-              <username>${{ github.actor }}</username>
-              <password>${{ github.token }}</password>
-            </server>
-          </servers>
-        </settings>
-        EOF
+      - name: Configure Maven auth
+        run: |
+          mkdir -p ~/.m2
+          cat > ~/.m2/settings.xml <<EOF
+          <settings>
+            <servers>
+              <server>
+                <id>private-repo</id>
+                <username>${{ secrets.PRIVATE_REPO_USERNAME }}</username>
+                <password>${{ secrets.PRIVATE_REPO_TOKEN }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
 
-    - name: Build with Maven (force updates)
-      run: mvn -U -B clean package --file pom.xml
+      - name: Build with Maven
+        run: mvn -U -B clean package --file pom.xml
 
-    - name: Publish to GitHub Packages
-      run: mvn -U deploy --file pom.xml
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
+      - name: Find built JAR
+        id: findjar
+        run: |
+          JAR=$(ls target/*.jar | head -n1)
+          BASENAME=$(basename "$JAR")
+          echo "jar=$JAR" >> $GITHUB_OUTPUT
+          echo "basename=$BASENAME" >> $GITHUB_OUTPUT
+
+      - name: Upload JAR to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: ${{ steps.findjar.outputs.jar }}
+          asset_name: ${{ steps.findjar.outputs.basename }}
+          asset_content_type: application/java-archive
