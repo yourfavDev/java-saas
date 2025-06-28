@@ -1,5 +1,6 @@
 package com.libraries.saas.services;
 
+import com.libraries.saas.dto.DashboardMetrics;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -33,14 +34,14 @@ public class DataService {
         this.sqs = sqs;
     }
 
-    public void populateData(HttpSession session) {
+    public DashboardMetrics fetchMetrics() {
         // 1) table stats
         var desc = dynamo.describeTable(DescribeTableRequest.builder()
                 .tableName(tableName)
                 .build());
         var tbl = desc.table();
-        session.setAttribute("itemCount", tbl.itemCount());
-        session.setAttribute("tableSizeKbytes", tbl.tableSizeBytes()/1000);
+        long itemCount = tbl.itemCount();
+        long tableSize = tbl.tableSizeBytes() / 1000;
 
         // 2) last “Processed” timestamp via GSI, aliasing both status and timestamp
         var qry = QueryRequest.builder()
@@ -66,6 +67,7 @@ public class DataService {
                 .map(AttributeValue::n)
                 .map(Long::parseLong)
                 .orElse(0L);
+
         // 3) approximate number of messages in the error queue
         var attrReq = GetQueueAttributesRequest.builder()
                 .queueUrl(errorQueueUrl)
@@ -78,9 +80,16 @@ public class DataService {
                         .get(QueueAttributeName.APPROXIMATE_NUMBER_OF_MESSAGES)
         );
 
-        session.setAttribute("errors", errorMsgCount);
         Instant instantSec = Instant.ofEpochSecond(lastProcessedTs);
-        session.setAttribute("lastProcessedTimestamp", instantSec);
+        return new DashboardMetrics(itemCount, tableSize, instantSec, errorMsgCount);
+    }
+
+    public void populateData(HttpSession session) {
+        DashboardMetrics metrics = fetchMetrics();
+        session.setAttribute("itemCount", metrics.itemCount());
+        session.setAttribute("tableSizeKbytes", metrics.tableSizeKbytes());
+        session.setAttribute("errors", metrics.errors());
+        session.setAttribute("lastProcessedTimestamp", metrics.lastProcessedTimestamp());
     }
 
 }

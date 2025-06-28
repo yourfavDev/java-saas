@@ -73,19 +73,19 @@
             <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
                     <h3 class="text-xs font-medium text-gray-500 uppercase">Processed Jobs</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.itemCount}"></p>
+                    <p id="metric-processed" class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.itemCount}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
                     <h3 class="text-xs font-medium text-gray-500 uppercase">Table Size</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.tableSizeKbytes + 'Kb'}"></p>
+                    <p id="metric-size" class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.tableSizeKbytes + 'Kb'}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
                     <h3 class="text-xs font-medium text-gray-500 uppercase">Last Job</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.lastProcessedTimestamp}"></p>
+                    <p id="metric-last" class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.lastProcessedTimestamp}"></p>
                 </div>
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
                     <h3 class="text-xs font-medium text-gray-500 uppercase">Error Messages</h3>
-                    <p class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.errors}"></p>
+                    <p id="metric-errors" class="mt-1 text-xl font-semibold text-gray-900" th:text="${session.errors}"></p>
                 </div>
             </section>
 
@@ -113,19 +113,28 @@
                 const palette = document.getElementById('cmd-palette');
                 const input   = document.getElementById('cmd-input');
                 const list    = document.getElementById('cmd-list');
+                let selectedIdx = 0;
 
                 // Build list items
                 function refreshList(filter = '') {
                     list.innerHTML = '';
-                    commands
-                        .filter(c => c.name.toLowerCase().includes(filter.toLowerCase()))
-                        .forEach(c => {
-                            const li = document.createElement('li');
-                            li.className = 'px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 cursor-pointer';
-                            li.textContent = c.name;
-                            li.onclick = () => window.location = c.href;
-                            list.appendChild(li);
-                        });
+                    const filtered = commands.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()));
+                    filtered.forEach(c => {
+                        const li = document.createElement('li');
+                        li.className = 'px-4 py-2 cursor-pointer';
+                        li.textContent = c.name;
+                        li.onclick = () => window.location = c.href;
+                        list.appendChild(li);
+                    });
+                    selectedIdx = 0;
+                    updateSelection();
+                }
+
+                function updateSelection() {
+                    [...list.children].forEach((li, idx) => {
+                        li.classList.toggle('bg-gray-100', idx === selectedIdx);
+                        li.classList.toggle('dark:bg-gray-700', idx === selectedIdx);
+                    });
                 }
 
                 // Toggle palette on Cmd+K / Ctrl+K
@@ -137,16 +146,49 @@
                             input.focus();
                             refreshList();
                         }
+                        return;
                     }
-                    // Close on Escape
-                    if (e.key === 'Escape' && !palette.classList.contains('hidden')) {
-                        palette.classList.add('hidden');
+
+                    if (!palette.classList.contains('hidden')) {
+                        if (e.key === 'Escape') {
+                            palette.classList.add('hidden');
+                        } else if (e.key === 'ArrowDown') {
+                            selectedIdx = Math.min(selectedIdx + 1, list.children.length - 1);
+                            updateSelection();
+                            e.preventDefault();
+                        } else if (e.key === 'ArrowUp') {
+                            selectedIdx = Math.max(selectedIdx - 1, 0);
+                            updateSelection();
+                            e.preventDefault();
+                        } else if (e.key === 'Enter') {
+                            list.children[selectedIdx]?.click();
+                            e.preventDefault();
+                        }
                     }
                 });
 
                 // Filter as you type
                 input.addEventListener('input', () => {
                     refreshList(input.value);
+                });
+
+                async function loadMetrics() {
+                    try {
+                        const res = await fetch('/api/dashboard');
+                        if (!res.ok) return;
+                        const data = await res.json();
+                        document.getElementById('metric-processed').textContent = data.itemCount;
+                        document.getElementById('metric-size').textContent = data.tableSizeKbytes + 'Kb';
+                        document.getElementById('metric-last').textContent = data.lastProcessedTimestamp;
+                        document.getElementById('metric-errors').textContent = data.errors;
+                    } catch (err) {
+                        console.error('Failed to load metrics', err);
+                    }
+                }
+
+                document.addEventListener('DOMContentLoaded', () => {
+                    loadMetrics();
+                    setInterval(loadMetrics, 10000);
                 });
             </script>
 
