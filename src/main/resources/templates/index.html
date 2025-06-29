@@ -93,7 +93,10 @@
                         </svg>
                         <span id="run-label">Run</span>
                     </button>
-                    <p id="status" class="mt-2 text-sm text-gray-600">Idle</p>
+                    <div class="mt-2 text-sm flex items-center">
+                        <span id="status-text" class="text-gray-600 mr-2">Idle</span>
+                        <span id="status-indicator" class="w-3 h-3 rounded-full bg-gray-400 inline-block"></span>
+                    </div>
                 </div>
                 <div id="code-output" class="border border-gray-300 rounded p-4 bg-gray-50 overflow-auto h-64"></div>
                 <!-- Dependencies (collapsed by default) -->
@@ -134,7 +137,8 @@
                 (function () {
                     const btn    = document.getElementById('run-code');
                     const label  = document.getElementById('run-label');
-                    const status = document.getElementById('status');
+                    const statusText = document.getElementById('status-text');
+                    const statusIndicator = document.getElementById('status-indicator');
                     const output = document.getElementById('code-output');
 
                     /* Thymeleaf inlines the real token; empty string is the fallback when not logged in */
@@ -156,33 +160,51 @@
                     }
 
 
+                    function setIndicator(color) {
+                        statusIndicator.className = `w-3 h-3 rounded-full inline-block bg-${color}`;
+                    }
+
+                    function setStatus(text, color) {
+                        statusText.textContent = text;
+                        setIndicator(color);
+                    }
+
                     function setRunning(r) {
                         btn.disabled = r;
                         label.textContent = r ? 'Running…' : 'Run';
-                        if (r) status.textContent = 'Submitting job…';
                     }
 
                     async function poll(jobId) {
                         try {
                             const res  = await fetch(`/code-execution?token=${encodeURIComponent(token)}&id=${jobId}`);
                             const json = await res.json();
-                            status.textContent = `Status: ${json.status}`;
-                            if (json.status === 'job_pending') return setTimeout(() => poll(jobId), 1000);
 
-                            output.innerHTML =
-                                json.status === 'success'
-                                    ? json.output
-                                    : `<pre class="text-red-600">${json.error || 'Unknown error'}</pre>`;
+                            const colorMap = {
+                                'job_pending': 'yellow-500',
+                                'running': 'yellow-500',
+                                'success': 'green-500',
+                                'error': 'red-500',
+                                'not_found': 'red-500'
+                            };
+
+                            setStatus(`Status: ${json.status}`, colorMap[json.status] || 'gray-400');
+                            output.innerHTML = json.output || '';
+
+                            if (json.status === 'job_pending' || json.status === 'running') {
+                                return setTimeout(() => poll(jobId), 1000);
+                            }
                         } catch (e) {
                             output.innerHTML = `<pre class="text-red-600">${e.message}</pre>`;
-                            status.textContent = 'Error';
+                            setStatus('Error', 'red-500');
                         } finally {
-                            if (status.textContent !== 'Status: job_pending') setRunning(false);
+                            const txt = statusText.textContent;
+                            if (!txt.includes('job_pending') && !txt.includes('running')) setRunning(false);
                         }
                     }
 
                     btn.addEventListener('click', async () => {
                         setRunning(true);
+                        setStatus('Submitting…', 'blue-500');
                         output.innerHTML = '';
 
                         const pomText = document.getElementById('pom-editor').value;
@@ -210,7 +232,7 @@
                             poll(json.jobId);
                         } catch (e) {
                             output.innerHTML   = `<pre class="text-red-600">${e.message}</pre>`;
-                            status.textContent = 'Error';
+                            setStatus('Error', 'red-500');
                             setRunning(false);
                         }
                     });

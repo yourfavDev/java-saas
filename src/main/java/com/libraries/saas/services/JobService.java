@@ -5,7 +5,7 @@ import com.libraries.saas.dto.StatusResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.io.File;
+import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -18,8 +18,15 @@ import java.util.regex.Pattern;
 public class JobService {
 
     /* ------------------------------------------------------------------ */
+    private static class JobInfo {
+        Future<?> future;
+        final StringBuilder log = new StringBuilder();
+        volatile String status = "job_pending";
+        volatile String error;
+    }
+
     private final ExecutorService jobExecutor;
-    private final Map<String, Future<StatusResponse>> jobs = new ConcurrentHashMap<>();
+    private final Map<String, JobInfo> jobs = new ConcurrentHashMap<>();
 
     @Autowired
     public JobService(ExecutorService jobExecutor) { this.jobExecutor = jobExecutor; }
@@ -27,21 +34,33 @@ public class JobService {
     /* ------------------------------------------------------------------ */
     public String submitJob(CodeRequest req) {
         String id = UUID.randomUUID().toString();
-        jobs.put(id, jobExecutor.submit(() -> executeInDocker(req, id)));
+        JobInfo info = new JobInfo();
+        jobs.put(id, info);
+        info.future = jobExecutor.submit(() -> executeInDocker(req, id, info));
         return id;
     }
 
     public StatusResponse getJobStatus(String id) {
-        Future<StatusResponse> fut = jobs.get(id);
-        if (fut == null)          return new StatusResponse("not_found",  null, "Job ID not found");
-        if (!fut.isDone())        return new StatusResponse("job_pending", null, null);
-        try { return fut.get(); } catch (Exception e) {
-            return new StatusResponse("error", null, e.getMessage());
-        } finally { jobs.remove(id); }
+        JobInfo info = jobs.get(id);
+        if (info == null) {
+            return new StatusResponse("not_found", null, "Job ID not found");
+        }
+
+        if (info.future.isDone() && ("running".equals(info.status) || "job_pending".equals(info.status))) {
+            try { info.future.get(); } catch (Exception ignored) { }
+        }
+
+        String out = "<pre>" + escape(info.log.toString()) + "</pre>";
+
+        if ("success".equals(info.status) || "error".equals(info.status)) {
+            jobs.remove(id);
+        }
+
+        return new StatusResponse(info.status, out, info.error);
     }
 
     /* ---------------- docker runner ---------------------------------- */
-    private StatusResponse executeInDocker(CodeRequest req, String id) {
+    private void executeInDocker(CodeRequest req, String id, JobInfo info) {
 
         String container = "job-" + id;
         Path   tmpDir    = null;
@@ -69,19 +88,37 @@ public class JobService {
                     "bash","-c","mvn -q package exec:java -Dexec.mainClass=" + fqcn
             };
             proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
+            info.status = "running";
+
+            Thread gobbler = new Thread(() -> {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                    String line;
+                    while ((line = br.readLine()) != null) {
+                        synchronized (info.log) { info.log.append(line).append('\n'); }
+                    }
+                } catch (IOException ignored) {}
+            });
+            gobbler.start();
 
             if (!proc.waitFor(120, TimeUnit.SECONDS)) {
                 new ProcessBuilder("docker","kill",container).start().waitFor();
                 proc.destroyForcibly();
-                return new StatusResponse("error", null, "Execution timed out");
+                info.status = "error";
+                info.error = "Execution timed out";
+            } else {
+                gobbler.join();
+                if (proc.exitValue() == 0) {
+                    info.status = "success";
+                } else {
+                    info.status = "error";
+                    info.error = "Process exited with code " + proc.exitValue();
+                }
             }
-
-            String out = new String(proc.getInputStream().readAllBytes());
-            return new StatusResponse("success", "<pre>" + out + "</pre>", null);
 
         } catch (Exception e) {
             e.printStackTrace();
-            return new StatusResponse("error", null, e.getMessage());
+            info.status = "error";
+            info.error = e.getMessage();
         } finally {
             if (proc != null && proc.isAlive()) proc.destroyForcibly();
             if (tmpDir != null) deleteDirectory(tmpDir.toFile());
@@ -159,5 +196,11 @@ public class JobService {
     private void deleteDirectory(File dir) {
         if (dir.isDirectory()) for (File f : dir.listFiles()) deleteDirectory(f);
         dir.delete();
+    }
+
+    private static String escape(String s) {
+        return s.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
     }
 }
