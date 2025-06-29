@@ -23,6 +23,8 @@ public class JobService {
         final StringBuilder log = new StringBuilder();
         volatile String status = "job_pending";
         volatile String error;
+        String container;
+        Process process;
     }
 
     private final ExecutorService jobExecutor;
@@ -59,13 +61,25 @@ public class JobService {
         return new StatusResponse(info.status, out, info.error);
     }
 
+    public void cancelJob(String id) {
+        JobInfo info = jobs.get(id);
+        if (info == null) return;
+        if (info.future != null) info.future.cancel(true);
+        if (info.process != null && info.process.isAlive()) info.process.destroyForcibly();
+        if (info.container != null) {
+            try { new ProcessBuilder("docker","kill",info.container).start().waitFor(); } catch (Exception ignored) {}
+        }
+        info.status = "error";
+        info.error = "Cancelled by user";
+    }
+
     /* ---------------- docker runner ---------------------------------- */
     private void executeInDocker(CodeRequest req, String id, JobInfo info) {
 
         String container = "job-" + id;
         Path   tmpDir    = null;
         Process proc     = null;
-
+        
         try {
             /* 1 ─ prepare tmp project */
             tmpDir = Files.createTempDirectory("job");
@@ -89,6 +103,8 @@ public class JobService {
             };
             proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
             info.status = "running";
+            info.container = container;
+            info.process = proc;
 
             Process finalProc = proc;
             Thread gobbler = new Thread(() -> {

@@ -73,4 +73,22 @@ public class JobController {
 
     }
 
+    @PostMapping("/cancel")
+    public ResponseEntity<Void> cancelJob(
+            @RequestParam("token") String token,
+            @RequestParam("id") String id) {
+        try {
+            UserInfoDto userInfo = userRepository.getUserInfo(token);
+
+            if  (userInfo == null || !userInfo.roles().map(list -> list.contains("code-execution")).orElse(false)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+            }
+            jobService.cancelJob(id);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+
+    }
+
 }
