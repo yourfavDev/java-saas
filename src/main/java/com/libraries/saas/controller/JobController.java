@@ -41,7 +41,7 @@ public class JobController {
             if  (userInfo == null || !userInfo.roles().map(list -> list.contains("code-execution")).orElse(false)) {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
             }
-            String jobId = jobService.submitJob(new CodeRequest(request.getCode(), request.getDependencies()));
+            String jobId = jobService.submitJob(new CodeRequest(request.getCode(), request.getDependencies()), userInfo.id(), null);
             return ResponseEntity.ok(Collections.singletonMap("jobId", jobId));
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();

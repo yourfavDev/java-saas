@@ -5,17 +5,31 @@
     <title>Snippets</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="p-6 space-y-4">
-<h2 class="text-xl font-semibold">Saved Snippets</h2>
-<div id="snippets-list" class="space-y-2"></div>
+<body class="p-6 space-y-8 bg-gray-50 min-h-screen">
+<h2 class="text-2xl font-semibold">Saved Snippets</h2>
+<div id="snippets-list" class="grid gap-4 md:grid-cols-2"></div>
 
-<h3 class="text-lg font-medium mt-4">New Snippet</h3>
-<div class="space-y-2">
+<h3 class="text-xl font-medium mt-6">New Snippet</h3>
+<div class="space-y-2 bg-white p-4 rounded shadow">
     <input id="snip-name" type="text" placeholder="Name" class="border p-2 rounded w-full"/>
     <textarea id="snip-code" class="border p-2 rounded w-full h-40" placeholder="public class Job {}"></textarea>
     <textarea id="snip-deps" class="border p-2 rounded w-full h-20" placeholder="&lt;dependencies&gt;...&lt;/dependencies&gt;"></textarea>
     <input id="snip-cron" type="text" placeholder="Cron expression" class="border p-2 rounded w-full"/>
     <button id="save-snip" class="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
+</div>
+
+<h3 class="text-xl font-medium mt-8">Run History</h3>
+<div class="overflow-x-auto bg-white rounded shadow">
+    <table class="min-w-full text-sm" id="history-table">
+        <thead class="bg-gray-100">
+        <tr>
+            <th class="px-4 py-2 text-left">Time</th>
+            <th class="px-4 py-2 text-left">Snippet</th>
+            <th class="px-4 py-2 text-left">Status</th>
+        </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 </div>
 
 <script th:inline="javascript">
@@ -38,14 +52,30 @@
         const res = await fetch(`/api/snippets?token=${encodeURIComponent(token)}`);
         if(!res.ok) return;
         const data = await res.json();
-        list.innerHTML = data.map(s=>`<div class='border p-2 rounded'>${s.name} <button data-n='${s.name}' class='run bg-green-600 text-white px-2 py-1 rounded ml-2'>Run</button></div>`).join('');
+        list.innerHTML = data.map(s=>`<div class='border p-4 rounded bg-white shadow flex justify-between items-center'>`+
+            `<span>${s.name}</span>`+
+            `<button data-n='${s.name}' class='run bg-green-600 text-white px-2 py-1 rounded'>Run</button>`+
+            `</div>`).join('');
         document.querySelectorAll('button.run').forEach(b=>{
             b.onclick=async()=>{
                 await fetch(`/api/snippets/run?token=${encodeURIComponent(token)}&name=${b.dataset.n}`,{method:'POST'});
+                loadHistory();
             };
         });
     }
     load();
+
+    async function loadHistory(){
+        const res = await fetch(`/api/history?token=${encodeURIComponent(token)}`);
+        if(!res.ok) return;
+        const data = await res.json();
+        const tbody = document.querySelector('#history-table tbody');
+        tbody.innerHTML = data.map(r=>{
+            const ts = new Date(r.timestamp).toLocaleString();
+            return `<tr><td class='px-4 py-1 border-b'>${ts}</td><td class='px-4 py-1 border-b'>${r.snippetName||'-'}</td><td class='px-4 py-1 border-b'>${r.status}</td></tr>`;
+        }).join('');
+    }
+    loadHistory();
 
     document.getElementById('save-snip').onclick = async () => {
         const body = {
