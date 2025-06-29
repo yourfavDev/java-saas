@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org" class="h-full bg-gray-50">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" class="h-full" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <title>Snippets</title>
     <meta th:if="${session.token == null}" http-equiv="refresh" content="0;url=/login"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config={theme:{extend:{keyframes:{fadeIn:{'0%':{opacity:0},'100%':{opacity:1}}},animation:{'fade-in':'fadeIn 0.4s ease-out forwards'}}}};
@@ -14,8 +15,9 @@
     <aside class="hidden lg:flex lg:flex-col lg:w-1/5 bg-white border-r text-gray-700 p-6">
         <h1 class="text-2xl font-bold mb-8">My Dashboard</h1>
         <nav class="flex-1 space-y-4 text-sm">
-            <a th:href="@{/}" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Main Board</a>
-            <a th:href="@{/snippets}" class="block py-2 px-4 rounded bg-gray-100">Snippets</a>
+            <a href="#overview"  class="block py-2 px-4 rounded hover:bg-gray-100 transition">Overview</a>
+            <a th:href="@{/snippets}"  class="block py-2 px-4 rounded hover:bg-gray-100 transition">Snippets</a>
+            <a href="#settings"  class="block py-2 px-4 rounded hover:bg-gray-100 transition">Settings</a>
         </nav>
         <a th:href="@{/logout}" class="mt-auto block py-2 px-4 rounded text-red-600 hover:bg-red-50 text-center transition">Logout</a>
     </aside>
@@ -41,18 +43,7 @@
             </section>
             <section>
                 <h3 class="text-xl font-medium mb-2">Run History</h3>
-                <div class="overflow-x-auto bg-white rounded shadow">
-                    <table class="min-w-full text-sm" id="history-table">
-                        <thead class="bg-gray-100">
-                        <tr>
-                            <th class="px-4 py-2 text-left">Time</th>
-                            <th class="px-4 py-2 text-left">Snippet</th>
-                            <th class="px-4 py-2 text-left">Status</th>
-                        </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
+                <div id="history-list" class="space-y-2"></div>
             </section>
         </main>
     </div>
@@ -96,13 +87,18 @@
     load();
 
     async function loadHistory(){
-        const res = await fetch(`/api/history?token=${encodeURIComponent(token)}`);
+        const res = await fetch(`/api/snippets/scheduled?token=${encodeURIComponent(token)}`);
         if(!res.ok) return;
         const data = await res.json();
-        const tbody = document.querySelector('#history-table tbody');
-        tbody.innerHTML = data.map(r=>{
-            const ts = new Date(r.timestamp).toLocaleString();
-            return `<tr><td class='px-4 py-1 border-b'>${ts}</td><td class='px-4 py-1 border-b'>${r.snippetName||'-'}</td><td class='px-4 py-1 border-b'>${r.status}</td></tr>`;
+        const container = document.getElementById('history-list');
+        container.innerHTML = data.map(s=>{
+            const runs = s.history.map(r=>{
+                const ts = new Date(r.timestamp).toLocaleString();
+                const out = r.output?`<pre class='bg-dark text-light p-2 rounded'>${r.output}</pre>`:'';
+                const err = r.error?`<pre class='bg-danger text-light p-2 rounded'>${r.error}</pre>`:'';
+                return `<div class='mb-2'>${ts} - ${r.status}${out}${err}</div>`;
+            }).join('');
+            return `<details><summary>${s.snippet.name} (${s.snippet.cron})</summary>${runs}</details>`;
         }).join('');
     }
     loadHistory();

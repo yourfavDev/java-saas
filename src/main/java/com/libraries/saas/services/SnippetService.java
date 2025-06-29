@@ -5,18 +5,20 @@ import com.libraries.auth.dto.UserInfoDto;
 import com.libraries.auth.repository.UserRepository;
 import com.libraries.saas.dto.CodeRequest;
 import com.libraries.saas.dto.Snippet;
+import com.libraries.saas.dto.RunRecord;
+import com.libraries.saas.dto.ScheduledSnippet;
+import com.libraries.saas.services.RunHistoryService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Service;
+import jakarta.annotation.PostConstruct;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
@@ -29,18 +31,21 @@ public class SnippetService {
     private final JobService jobService;
     private final UserRepository userRepository;
     private final TaskScheduler scheduler;
+    private final RunHistoryService historyService;
     private final List<ScheduledFuture<?>> tasks = new ArrayList<>();
 
     public SnippetService(S3Client s3,
                           @Value("${app.s3.bucket-name}") String bucket,
                           JobService jobService,
                           UserRepository userRepository,
-                          TaskScheduler scheduler) {
+                          TaskScheduler scheduler,
+                          RunHistoryService historyService) {
         this.s3 = s3;
         this.bucket = bucket;
         this.jobService = jobService;
         this.userRepository = userRepository;
         this.scheduler = scheduler;
+        this.historyService = historyService;
     }
 
     public void saveSnippet(String token, Snippet snippet) throws IOException {
@@ -49,7 +54,7 @@ public class SnippetService {
         String key = info.id() + "/snippets/" + snippet.getName() + ".json";
         byte[] data = mapper.writeValueAsBytes(snippet);
         s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(),
-                new ByteArrayInputStream(data), data.length);
+                software.amazon.awssdk.core.sync.RequestBody.fromBytes(data));
         if (snippet.getCron() != null && !snippet.getCron().isBlank()) {
             scheduleSnippet(snippet, token);
         }
@@ -83,21 +88,58 @@ public class SnippetService {
         jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()), info.id(), name);
     }
 
-    private void scheduleSnippet(Snippet snippet, String token) {
-        UserInfoDto info = userRepository.getUserInfo(token);
-        if (info == null) return;
+    private void scheduleInternal(Snippet snippet, String userId) {
         Runnable task = () -> {
             try {
-                jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()), info.id(), snippet.getName());
-            } catch (Exception ignored) {
-            }
+                jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()), userId, snippet.getName());
+            } catch (Exception ignored) {}
         };
         String cron = snippet.getCron();
-        if (cron.split(" ").length == 5) {
-            cron = "0 " + cron; // allow classic 5-field cron syntax
-        }
+        if (cron.split(" ").length == 5) cron = "0 " + cron;
         CronTrigger trigger = new CronTrigger(cron);
         ScheduledFuture<?> future = scheduler.schedule(task, trigger);
         tasks.add(future);
+    }
+
+    private void scheduleSnippet(Snippet snippet, String token) {
+        UserInfoDto info = userRepository.getUserInfo(token);
+        if (info == null) return;
+        scheduleInternal(snippet, info.id());
+    }
+
+    @PostConstruct
+    private void loadScheduledOnStartup() {
+        try {
+            var req = ListObjectsV2Request.builder().bucket(bucket).prefix("").build();
+            var res = s3.listObjectsV2(req);
+            for (var obj : res.contents()) {
+                String key = obj.key();
+                if (!key.contains("/snippets/")) continue;
+                var bytes = s3.getObjectAsBytes(GetObjectRequest.builder().bucket(bucket).key(key).build()).asByteArray();
+                Snippet snip = mapper.readValue(bytes, Snippet.class);
+                if (snip.getCron() != null && !snip.getCron().isBlank()) {
+                    String userId = key.substring(0, key.indexOf('/'));
+                    scheduleInternal(snip, userId);
+                }
+            }
+        } catch (Exception ignored) {}
+    }
+
+    public List<ScheduledSnippet> scheduledWithHistory(String token) throws IOException {
+        UserInfoDto info = userRepository.getUserInfo(token);
+        if (info == null) throw new IllegalArgumentException("Invalid token");
+        List<Snippet> snippets = listSnippets(token);
+        List<RunRecord> history = historyService.list(info.id());
+        List<ScheduledSnippet> result = new ArrayList<>();
+        for (Snippet s : snippets) {
+            if (s.getCron() != null && !s.getCron().isBlank()) {
+                List<RunRecord> h = new ArrayList<>();
+                for (RunRecord r : history) {
+                    if (s.getName().equals(r.getSnippetName())) h.add(r);
+                }
+                result.add(new ScheduledSnippet(s, h));
+            }
+        }
+        return result;
     }
 }
