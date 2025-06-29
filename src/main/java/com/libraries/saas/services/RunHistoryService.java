@@ -9,7 +9,6 @@ import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,7 +30,7 @@ public class RunHistoryService {
             byte[] data = mapper.writeValueAsBytes(record);
             String key = userId + "/history/" + record.getJobId() + ".json";
             s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(),
-                    new ByteArrayInputStream(data), data.length);
+                    software.amazon.awssdk.core.sync.RequestBody.fromBytes(data));
         } catch (Exception ignored) {
         }
     }

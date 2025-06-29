@@ -1,6 +1,7 @@
 package com.libraries.saas.controller;
 
 import com.libraries.saas.dto.Snippet;
+import com.libraries.saas.dto.ScheduledSnippet;
 import com.libraries.saas.services.SnippetService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,6 +44,15 @@ public class SnippetController {
         try {
             snippetService.runSnippet(token, name);
             return ResponseEntity.ok().build();
+        } catch (IOException e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @GetMapping("/scheduled")
+    public ResponseEntity<List<ScheduledSnippet>> scheduled(@RequestParam("token") String token) {
+        try {
+            return ResponseEntity.ok(snippetService.scheduledWithHistory(token));
         } catch (IOException e) {
             return ResponseEntity.badRequest().build();
         }
