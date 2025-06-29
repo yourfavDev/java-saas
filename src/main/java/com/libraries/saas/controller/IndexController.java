@@ -23,4 +23,10 @@ public class IndexController {
 
         return "index";
     }
+
+    @GetMapping("/snippets")
+    public String snippets(HttpSession session) {
+        if (session.getAttribute("token") == null) return "redirect:/login";
+        return "snippets";
+    }
 }
