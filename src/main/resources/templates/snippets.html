@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Snippets</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-6 space-y-4">
+<h2 class="text-xl font-semibold">Saved Snippets</h2>
+<div id="snippets-list" class="space-y-2"></div>
+
+<h3 class="text-lg font-medium mt-4">New Snippet</h3>
+<div class="space-y-2">
+    <input id="snip-name" type="text" placeholder="Name" class="border p-2 rounded w-full"/>
+    <textarea id="snip-code" class="border p-2 rounded w-full h-40" placeholder="public class Job {}"></textarea>
+    <textarea id="snip-deps" class="border p-2 rounded w-full h-20" placeholder="&lt;dependencies&gt;...&lt;/dependencies&gt;"></textarea>
+    <input id="snip-cron" type="text" placeholder="Cron expression" class="border p-2 rounded w-full"/>
+    <button id="save-snip" class="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
+</div>
+
+<script th:inline="javascript">
+/*<![CDATA[*/
+(function(){
+    const token = /*[[${session.token}]]*/ '';
+    const list  = document.getElementById('snippets-list');
+
+    function parsePomDependencies(xml){
+        const deps=[];
+        const rx=/<dependency>[\s\S]*?<groupId>(.*?)<\/groupId>[\s\S]*?<artifactId>(.*?)<\/artifactId>(?:[\s\S]*?<version>(.*?)<\/version>)?[\s\S]*?<\/dependency>/gi;
+        let m;while((m=rx.exec(xml))!==null){
+            const coord=m[3]&&m[3].trim()?`${m[1]}:${m[2]}:${m[3]}`:`${m[1]}:${m[2]}`;
+            deps.push(coord);
+        }
+        return deps;
+    }
+
+    async function load(){
+        const res = await fetch(`/snippets?token=${encodeURIComponent(token)}`);
+        if(!res.ok) return;
+        const data = await res.json();
+        list.innerHTML = data.map(s=>`<div class='border p-2 rounded'>${s.name} <button data-n='${s.name}' class='run bg-green-600 text-white px-2 py-1 rounded ml-2'>Run</button></div>`).join('');
+        document.querySelectorAll('button.run').forEach(b=>{
+            b.onclick=async()=>{
+                await fetch(`/snippets/run?token=${encodeURIComponent(token)}&name=${b.dataset.n}`,{method:'POST'});
+            };
+        });
+    }
+    load();
+
+    document.getElementById('save-snip').onclick = async () => {
+        const body = {
+            name: document.getElementById('snip-name').value,
+            code: document.getElementById('snip-code').value,
+            dependencies: parsePomDependencies(document.getElementById('snip-deps').value),
+            cron: document.getElementById('snip-cron').value
+        };
+        await fetch(`/snippets/save?token=${encodeURIComponent(token)}`,{
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body)
+        });
+        load();
+    };
+})();
+/*]]>*/
+</script>
+</body>
+</html>
