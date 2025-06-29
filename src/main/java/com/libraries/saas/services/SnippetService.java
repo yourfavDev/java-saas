@@ -55,6 +55,10 @@ public class SnippetService {
         byte[] data = mapper.writeValueAsBytes(snippet);
         s3.putObject(PutObjectRequest.builder().bucket(bucket).key(key).build(),
                 software.amazon.awssdk.core.sync.RequestBody.fromBytes(data));
+        // ensure history folder exists
+        String historyKey = info.id() + "/history/";
+        s3.putObject(PutObjectRequest.builder().bucket(bucket).key(historyKey).build(),
+                software.amazon.awssdk.core.sync.RequestBody.empty());
         if (snippet.getCron() != null && !snippet.getCron().isBlank()) {
             scheduleSnippet(snippet, token);
         }
@@ -95,7 +99,12 @@ public class SnippetService {
             } catch (Exception ignored) {}
         };
         String cron = snippet.getCron();
-        if (cron.split(" ").length == 5) cron = "0 " + cron;
+        String[] parts = cron.trim().split(" ");
+        if (parts.length == 4) {
+            cron = "0 " + cron + " *";        // add seconds and day-of-week
+        } else if (parts.length == 5) {
+            cron = "0 " + cron;               // add seconds
+        }
         CronTrigger trigger = new CronTrigger(cron);
         ScheduledFuture<?> future = scheduler.schedule(task, trigger);
         tasks.add(future);

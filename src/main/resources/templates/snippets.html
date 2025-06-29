@@ -6,6 +6,7 @@
     <meta th:if="${session.token == null}" http-equiv="refresh" content="0;url=/login"/>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/darkly/bootstrap.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs/loader.js"></script>
     <script>
         tailwind.config={theme:{extend:{keyframes:{fadeIn:{'0%':{opacity:0},'100%':{opacity:1}}},animation:{'fade-in':'fadeIn 0.4s ease-out forwards'}}}};
     </script>
@@ -35,7 +36,7 @@
                 <h3 class="text-xl font-medium mb-2">New Snippet</h3>
                 <div class="space-y-2 bg-white p-4 rounded shadow">
                     <input id="snip-name" type="text" placeholder="Name" class="border p-2 rounded w-full"/>
-                    <textarea id="snip-code" class="border p-2 rounded w-full h-40" placeholder="public class Job {}"></textarea>
+                    <div id="snip-editor" class="w-full" style="height:300px;border:1px solid #d1d5db;border-radius:.375rem;"></div>
                     <textarea id="snip-deps" class="border p-2 rounded w-full h-20" placeholder="&lt;dependencies&gt;...&lt;/dependencies&gt;"></textarea>
                     <input id="snip-cron" type="text" placeholder="Cron expression" class="border p-2 rounded w-full"/>
                     <button id="save-snip" class="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
@@ -55,6 +56,15 @@
     const token = /*[[${session.token}]]*/ '';
     const list  = document.getElementById('snippets-list');
     const msg   = document.getElementById('run-message');
+
+    require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs'}});
+    let editor;
+    require(['vs/editor/editor.main'],function(){
+        editor = monaco.editor.create(document.getElementById('snip-editor'),{
+            value:`public class Job {\n    public static void main(String[] args) {\n        System.out.println("Logic goes here...");\n    }\n}`,
+            language:'java',theme:'vs-dark',automaticLayout:true,tabSize:4,insertSpaces:true
+        });
+    });
 
     function parsePomDependencies(xml){
         const deps=[];
@@ -106,7 +116,7 @@
     document.getElementById('save-snip').onclick = async () => {
         const body = {
             name: document.getElementById('snip-name').value,
-            code: document.getElementById('snip-code').value,
+            code: editor.getValue(),
             dependencies: parsePomDependencies(document.getElementById('snip-deps').value),
             cron: document.getElementById('snip-cron').value
         };

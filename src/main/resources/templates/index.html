@@ -131,8 +131,8 @@
                 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs'}});
                 require(['vs/editor/editor.main'],function(){
                     window.editor=monaco.editor.create(document.getElementById('editor'),{
-                        value:`public class Job {\n    public void runner() {\n        System.out.println("Logic goes here...");\n    }\n}`,
-                        language:'java',theme:'vs-light',automaticLayout:true,tabSize:4,insertSpaces:true,lineNumbers:'on',
+                          value:`public class Job {\n    public static void main(String[] args) {\n        System.out.println("Logic goes here...");\n    }\n}`,
+                        language:'java',theme:'vs-dark',automaticLayout:true,tabSize:4,insertSpaces:true,lineNumbers:'on',
                         minimap:{enabled:false},quickSuggestions:true,suggestOnTriggerCharacters:true,acceptSuggestionOnEnter:'on',
                         parameterHints:{enabled:true}});
                 });
