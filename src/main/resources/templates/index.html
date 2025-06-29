@@ -10,6 +10,7 @@
 
     <style>
         #editor{height:300px;width:100%;border:1px solid #d1d5db;border-radius:.375rem}
+        #output-overlay.hidden{display:none}
     </style>
 
     <!-- Chart.js & Monaco -->
@@ -119,6 +120,17 @@
 
             </section>
 
+            <!-- Fullscreen output overlay -->
+            <div id="output-overlay" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                <div class="bg-white rounded-lg shadow-lg w-11/12 h-5/6 relative flex flex-col">
+                    <button id="close-output" type="button" class="absolute top-2 right-2 text-gray-600 hover:text-black">&times;</button>
+                    <pre id="fullscreen-output" class="flex-1 overflow-auto p-4 text-sm bg-gray-50"></pre>
+                    <div class="p-2 border-t flex justify-end">
+                        <button id="cancel-job" type="button" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">Stop</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- Monaco -->
             <script>
                 require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs'}});
@@ -140,6 +152,12 @@
                     const statusText = document.getElementById('status-text');
                     const statusIndicator = document.getElementById('status-indicator');
                     const output = document.getElementById('code-output');
+                    const overlay = document.getElementById('output-overlay');
+                    const fullscreenOut = document.getElementById('fullscreen-output');
+                    const cancelBtn = document.getElementById('cancel-job');
+                    const closeBtn = document.getElementById('close-output');
+                    let currentJob = null;
+                    closeBtn.addEventListener('click', () => overlay.classList.add('hidden'));
 
                     /* Thymeleaf inlines the real token; empty string is the fallback when not logged in */
                     const token  = /*[[${session.token}]]*/ '';
@@ -189,16 +207,26 @@
 
                             setStatus(`Status: ${json.status}`, colorMap[json.status] || 'gray-400');
                             output.innerHTML = json.output || '';
+                            if (!overlay.classList.contains('hidden')) {
+                                fullscreenOut.innerHTML = json.output || '';
+                                fullscreenOut.scrollTop = fullscreenOut.scrollHeight;
+                            }
+                            output.scrollTop = output.scrollHeight;
 
                             if (json.status === 'job_pending' || json.status === 'running') {
                                 return setTimeout(() => poll(jobId), 1000);
+                            } else {
+                                cancelBtn.disabled = true;
                             }
                         } catch (e) {
                             output.innerHTML = `<pre class="text-red-600">${e.message}</pre>`;
                             setStatus('Error', 'red-500');
                         } finally {
                             const txt = statusText.textContent;
-                            if (!txt.includes('job_pending') && !txt.includes('running')) setRunning(false);
+                            if (!txt.includes('job_pending') && !txt.includes('running')) {
+                                setRunning(false);
+                                cancelBtn.disabled = true;
+                            }
                         }
                     }
 
@@ -206,6 +234,9 @@
                         setRunning(true);
                         setStatus('Submitting…', 'blue-500');
                         output.innerHTML = '';
+                        fullscreenOut.innerHTML = '';
+                        overlay.classList.remove('hidden');
+                        cancelBtn.disabled = true;
 
                         const pomText = document.getElementById('pom-editor').value;
 
@@ -229,6 +260,15 @@
 
                             const json = await res.json();
                             if (!json.jobId) throw new Error('No jobId returned');
+                            currentJob = json.jobId;
+                            cancelBtn.disabled = false;
+                            cancelBtn.onclick = async () => {
+                                cancelBtn.disabled = true;
+                                await fetch(`/code-execution/cancel?token=${encodeURIComponent(token)}&id=${currentJob}`, {method: 'POST'});
+                                setStatus('Cancelled', 'red-500');
+                                overlay.classList.add('hidden');
+                                setRunning(false);
+                            };
                             poll(json.jobId);
                         } catch (e) {
                             output.innerHTML   = `<pre class="text-red-600">${e.message}</pre>`;
