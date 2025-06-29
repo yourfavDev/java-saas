@@ -2,6 +2,8 @@ package com.libraries.saas.services;
 
 import com.libraries.saas.dto.CodeRequest;
 import com.libraries.saas.dto.StatusResponse;
+import com.libraries.saas.dto.RunRecord;
+import com.libraries.saas.services.RunHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -28,16 +30,28 @@ public class JobService {
     }
 
     private final ExecutorService jobExecutor;
+    private final RunHistoryService historyService;
     private final Map<String, JobInfo> jobs = new ConcurrentHashMap<>();
+    private final Map<String, String> jobUsers = new ConcurrentHashMap<>();
+    private final Map<String, String> jobNames = new ConcurrentHashMap<>();
 
     @Autowired
-    public JobService(ExecutorService jobExecutor) { this.jobExecutor = jobExecutor; }
+    public JobService(ExecutorService jobExecutor, RunHistoryService historyService) {
+        this.jobExecutor = jobExecutor;
+        this.historyService = historyService;
+    }
 
     /* ------------------------------------------------------------------ */
     public String submitJob(CodeRequest req) {
+        return submitJob(req, null, null);
+    }
+
+    public String submitJob(CodeRequest req, String userId, String snippetName) {
         String id = UUID.randomUUID().toString();
         JobInfo info = new JobInfo();
         jobs.put(id, info);
+        if (userId != null) jobUsers.put(id, userId);
+        if (snippetName != null) jobNames.put(id, snippetName);
         info.future = jobExecutor.submit(() -> executeInDocker(req, id, info));
         return id;
     }
@@ -56,6 +70,12 @@ public class JobService {
 
         if ("success".equals(info.status) || "error".equals(info.status)) {
             jobs.remove(id);
+            String user = jobUsers.remove(id);
+            String name = jobNames.remove(id);
+            if (user != null) {
+                RunRecord rec = historyService.newRecord(id, name, info.status, info.log.toString(), info.error);
+                historyService.record(user, rec);
+            }
         }
 
         return new StatusResponse(info.status, out, info.error);

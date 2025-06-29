@@ -59,13 +59,16 @@ public class SnippetService {
         UserInfoDto info = userRepository.getUserInfo(token);
         if (info == null) throw new IllegalArgumentException("Invalid token");
         String prefix = info.id() + "/snippets/";
-        var req = ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).build();
-        var res = s3.listObjectsV2(req);
         List<Snippet> snippets = new ArrayList<>();
-        for (var obj : res.contents()) {
-            var get = GetObjectRequest.builder().bucket(bucket).key(obj.key()).build();
-            var bytes = s3.getObjectAsBytes(get).asByteArray();
-            snippets.add(mapper.readValue(bytes, Snippet.class));
+        try {
+            var req = ListObjectsV2Request.builder().bucket(bucket).prefix(prefix).build();
+            var res = s3.listObjectsV2(req);
+            for (var obj : res.contents()) {
+                var get = GetObjectRequest.builder().bucket(bucket).key(obj.key()).build();
+                var bytes = s3.getObjectAsBytes(get).asByteArray();
+                snippets.add(mapper.readValue(bytes, Snippet.class));
+            }
+        } catch (Exception ignored) {
         }
         return snippets;
     }
@@ -77,16 +80,23 @@ public class SnippetService {
         var get = GetObjectRequest.builder().bucket(bucket).key(key).build();
         var bytes = s3.getObjectAsBytes(get).asByteArray();
         Snippet snippet = mapper.readValue(bytes, Snippet.class);
-        jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()));
+        jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()), info.id(), name);
     }
 
     private void scheduleSnippet(Snippet snippet, String token) {
+        UserInfoDto info = userRepository.getUserInfo(token);
+        if (info == null) return;
         Runnable task = () -> {
             try {
-                jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()));
-            } catch (Exception ignored) {}
+                jobService.submitJob(new CodeRequest(snippet.getCode(), snippet.getDependencies()), info.id(), snippet.getName());
+            } catch (Exception ignored) {
+            }
         };
-        CronTrigger trigger = new CronTrigger(snippet.getCron());
+        String cron = snippet.getCron();
+        if (cron.split(" ").length == 5) {
+            cron = "0 " + cron; // allow classic 5-field cron syntax
+        }
+        CronTrigger trigger = new CronTrigger(cron);
         ScheduledFuture<?> future = scheduler.schedule(task, trigger);
         tasks.add(future);
     }
