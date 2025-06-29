@@ -1,35 +1,61 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org" class="h-full bg-gray-50">
 <head>
     <meta charset="UTF-8">
     <title>Snippets</title>
+    <meta th:if="${session.token == null}" http-equiv="refresh" content="0;url=/login"/>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config={theme:{extend:{keyframes:{fadeIn:{'0%':{opacity:0},'100%':{opacity:1}}},animation:{'fade-in':'fadeIn 0.4s ease-out forwards'}}}};
+    </script>
 </head>
-<body class="p-6 space-y-8 bg-gray-50 min-h-screen">
-<h2 class="text-2xl font-semibold">Saved Snippets</h2>
-<div id="snippets-list" class="grid gap-4 md:grid-cols-2"></div>
-
-<h3 class="text-xl font-medium mt-6">New Snippet</h3>
-<div class="space-y-2 bg-white p-4 rounded shadow">
-    <input id="snip-name" type="text" placeholder="Name" class="border p-2 rounded w-full"/>
-    <textarea id="snip-code" class="border p-2 rounded w-full h-40" placeholder="public class Job {}"></textarea>
-    <textarea id="snip-deps" class="border p-2 rounded w-full h-20" placeholder="&lt;dependencies&gt;...&lt;/dependencies&gt;"></textarea>
-    <input id="snip-cron" type="text" placeholder="Cron expression" class="border p-2 rounded w-full"/>
-    <button id="save-snip" class="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
-</div>
-
-<h3 class="text-xl font-medium mt-8">Run History</h3>
-<div class="overflow-x-auto bg-white rounded shadow">
-    <table class="min-w-full text-sm" id="history-table">
-        <thead class="bg-gray-100">
-        <tr>
-            <th class="px-4 py-2 text-left">Time</th>
-            <th class="px-4 py-2 text-left">Snippet</th>
-            <th class="px-4 py-2 text-left">Status</th>
-        </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+<body class="h-full overflow-hidden">
+<div th:if="${session.token != null}" class="flex h-full animate-fade-in">
+    <aside class="hidden lg:flex lg:flex-col lg:w-1/5 bg-white border-r text-gray-700 p-6">
+        <h1 class="text-2xl font-bold mb-8">My Dashboard</h1>
+        <nav class="flex-1 space-y-4 text-sm">
+            <a th:href="@{/}" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Main Board</a>
+            <a th:href="@{/snippets}" class="block py-2 px-4 rounded bg-gray-100">Snippets</a>
+        </nav>
+        <a th:href="@{/logout}" class="mt-auto block py-2 px-4 rounded text-red-600 hover:bg-red-50 text-center transition">Logout</a>
+    </aside>
+    <div class="flex-1 flex flex-col">
+        <header class="flex items-center justify-between bg-white border-b px-6 py-4">
+            <h2 class="text-lg font-semibold text-gray-800">Snippets</h2>
+        </header>
+        <main class="p-6 overflow-auto space-y-8">
+            <section>
+                <h2 class="text-2xl font-semibold mb-4">Saved Snippets</h2>
+                <div id="snippets-list" class="grid gap-4 md:grid-cols-2"></div>
+                <p id="run-message" class="text-sm text-gray-600 mt-2"></p>
+            </section>
+            <section>
+                <h3 class="text-xl font-medium mb-2">New Snippet</h3>
+                <div class="space-y-2 bg-white p-4 rounded shadow">
+                    <input id="snip-name" type="text" placeholder="Name" class="border p-2 rounded w-full"/>
+                    <textarea id="snip-code" class="border p-2 rounded w-full h-40" placeholder="public class Job {}"></textarea>
+                    <textarea id="snip-deps" class="border p-2 rounded w-full h-20" placeholder="&lt;dependencies&gt;...&lt;/dependencies&gt;"></textarea>
+                    <input id="snip-cron" type="text" placeholder="Cron expression" class="border p-2 rounded w-full"/>
+                    <button id="save-snip" class="bg-indigo-600 text-white px-4 py-2 rounded">Save</button>
+                </div>
+            </section>
+            <section>
+                <h3 class="text-xl font-medium mb-2">Run History</h3>
+                <div class="overflow-x-auto bg-white rounded shadow">
+                    <table class="min-w-full text-sm" id="history-table">
+                        <thead class="bg-gray-100">
+                        <tr>
+                            <th class="px-4 py-2 text-left">Time</th>
+                            <th class="px-4 py-2 text-left">Snippet</th>
+                            <th class="px-4 py-2 text-left">Status</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
 </div>
 
 <script th:inline="javascript">
@@ -37,6 +63,7 @@
 (function(){
     const token = /*[[${session.token}]]*/ '';
     const list  = document.getElementById('snippets-list');
+    const msg   = document.getElementById('run-message');
 
     function parsePomDependencies(xml){
         const deps=[];
@@ -58,7 +85,10 @@
             `</div>`).join('');
         document.querySelectorAll('button.run').forEach(b=>{
             b.onclick=async()=>{
+                msg.textContent='Running snippet...';
                 await fetch(`/api/snippets/run?token=${encodeURIComponent(token)}&name=${b.dataset.n}`,{method:'POST'});
+                msg.textContent='Run submitted';
+                setTimeout(()=>msg.textContent='',3000);
                 loadHistory();
             };
         });

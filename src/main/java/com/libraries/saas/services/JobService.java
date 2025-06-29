@@ -27,6 +27,7 @@ public class JobService {
         volatile String error;
         String container;
         Process process;
+        volatile boolean historyRecorded = false;
     }
 
     private final ExecutorService jobExecutor;
@@ -34,6 +35,17 @@ public class JobService {
     private final Map<String, JobInfo> jobs = new ConcurrentHashMap<>();
     private final Map<String, String> jobUsers = new ConcurrentHashMap<>();
     private final Map<String, String> jobNames = new ConcurrentHashMap<>();
+
+    private void recordHistory(String id, JobInfo info) {
+        if (info.historyRecorded) return;
+        String user = jobUsers.get(id);
+        if (user == null) return;
+        String name = jobNames.get(id);
+        RunRecord rec = historyService.newRecord(id, name, info.status,
+                info.log.toString(), info.error);
+        historyService.record(user, rec);
+        info.historyRecorded = true;
+    }
 
     @Autowired
     public JobService(ExecutorService jobExecutor, RunHistoryService historyService) {
@@ -69,13 +81,10 @@ public class JobService {
         String out = "<pre>" + escape(info.log.toString()) + "</pre>";
 
         if ("success".equals(info.status) || "error".equals(info.status)) {
+            recordHistory(id, info);
             jobs.remove(id);
-            String user = jobUsers.remove(id);
-            String name = jobNames.remove(id);
-            if (user != null) {
-                RunRecord rec = historyService.newRecord(id, name, info.status, info.log.toString(), info.error);
-                historyService.record(user, rec);
-            }
+            jobUsers.remove(id);
+            jobNames.remove(id);
         }
 
         return new StatusResponse(info.status, out, info.error);
@@ -91,6 +100,7 @@ public class JobService {
         }
         info.status = "error";
         info.error = "Cancelled by user";
+        recordHistory(id, info);
     }
 
     /* ---------------- docker runner ---------------------------------- */
@@ -159,6 +169,7 @@ public class JobService {
         } finally {
             if (proc != null && proc.isAlive()) proc.destroyForcibly();
             if (tmpDir != null) deleteDirectory(tmpDir.toFile());
+            recordHistory(id, info);
         }
     }
 
