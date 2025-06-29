@@ -90,8 +90,9 @@ public class JobService {
             proc = new ProcessBuilder(cmd).redirectErrorStream(true).start();
             info.status = "running";
 
+            Process finalProc = proc;
             Thread gobbler = new Thread(() -> {
-                try (BufferedReader br = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                try (BufferedReader br = new BufferedReader(new InputStreamReader(finalProc.getInputStream()))) {
                     String line;
                     while ((line = br.readLine()) != null) {
                         synchronized (info.log) { info.log.append(line).append('\n'); }
