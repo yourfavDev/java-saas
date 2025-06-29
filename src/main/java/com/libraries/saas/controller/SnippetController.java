@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.util.List;
 
 @RestController
-@RequestMapping("/snippets")
+@RequestMapping("/api/snippets")
 public class SnippetController {
     private final SnippetService snippetService;
 
