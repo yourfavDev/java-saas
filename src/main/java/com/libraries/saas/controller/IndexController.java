@@ -10,11 +10,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 public class IndexController {
 
     private final DataService dataService;
-    private final TestRest testRest;
 
-    public IndexController(DataService dataService, TestRest testRest) {
+    public IndexController(DataService dataService) {
         this.dataService = dataService;
-        this.testRest = testRest;
     }
 
     @GetMapping("/")
@@ -22,9 +20,6 @@ public class IndexController {
         // existing session data
         dataService.populateData(session);
 
-        // fetch example.com HTML and put into session
-        String exampleHtml = testRest.getExample();
-        session.setAttribute("exampleHtml", exampleHtml);
 
         return "index";
     }

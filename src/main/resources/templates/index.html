@@ -4,23 +4,20 @@
     <meta charset="UTF-8">
     <title>Dashboard</title>
     <meta th:if="${session.token == null}" http-equiv="refresh" content="0;url=/login"/>
+
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js -->
+
+    <style>
+        #editor{height:300px;width:100%;border:1px solid #d1d5db;border-radius:.375rem}
+    </style>
+
+    <!-- Chart.js & Monaco -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs/loader.js"></script>
+
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    keyframes: {
-                        fadeIn: { '0%': { opacity: 0 }, '100%': { opacity: 1 } }
-                    },
-                    animation: {
-                        'fade-in': 'fadeIn 0.4s ease-out forwards'
-                    }
-                }
-            }
-        };
+        tailwind.config={theme:{extend:{keyframes:{fadeIn:{'0%':{opacity:0},'100%':{opacity:1}}},animation:{'fade-in':'fadeIn 0.4s ease-out forwards'}}}};
     </script>
 </head>
 <body class="h-full overflow-hidden">
@@ -28,36 +25,33 @@
 <div th:if="${session.token != null}" class="flex h-full animate-fade-in">
     <!-- Sidebar -->
     <aside class="hidden lg:flex lg:flex-col lg:w-1/5 bg-white border-r text-gray-700 p-6">
-        <div class="mb-8">
-            <h1 class="text-2xl font-bold">My Dashboard</h1>
-        </div>
+        <h1 class="text-2xl font-bold mb-8">My Dashboard</h1>
         <nav class="flex-1 space-y-4 text-sm">
-            <a href="#" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Overview</a>
-            <a href="#" class="block py-2 px-4 rounded hover:bg-gray-100 transition">Settings</a>
+            <a href="#overview"  class="block py-2 px-4 rounded hover:bg-gray-100 transition">Overview</a>
+            <a href="#settings"  class="block py-2 px-4 rounded hover:bg-gray-100 transition">Settings</a>
         </nav>
-        <a th:href="@{/logout}" class="mt-auto block py-2 px-4 rounded text-red-600 hover:bg-red-50 transition text-center">Logout</a>
+        <a th:href="@{/logout}" class="mt-auto block py-2 px-4 rounded text-red-600 hover:bg-red-50 text-center transition">Logout</a>
     </aside>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <div class="flex-1 flex flex-col">
-
-        <!-- Top Navbar -->
+        <!-- Navbar -->
         <header class="flex items-center justify-between bg-white border-b px-6 py-4">
             <div class="flex items-center space-x-4">
                 <button class="lg:hidden text-gray-600 hover:text-gray-800 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
                     </svg>
                 </button>
                 <h2 class="text-lg font-semibold text-gray-800">Welcome, <span th:text="${session.user}"></span></h2>
             </div>
             <div class="flex items-center space-x-4">
-                <input type="text" placeholder="Search..." class="hidden md:block px-3 py-1 border border-gray-300 rounded transition focus:ring-2 focus:ring-indigo-300"/>
+                <input type="text" placeholder="Search…" class="hidden md:block px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-indigo-300 transition"/>
                 <button class="relative text-gray-600 hover:text-gray-800 transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
                     </svg>
-                    <span class="absolute top-0 right-0 inline-block w-2 h-2 bg-red-500 rounded-full"></span>
+                    <span class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
                 </button>
                 <button class="flex items-center space-x-2 focus:outline-none transition">
                     <img src="https://i.pravatar.cc/32" class="w-8 h-8 rounded-full" alt="avatar"/>
@@ -66,10 +60,9 @@
             </div>
         </header>
 
-        <!-- Scrollable Main Area -->
+        <!-- Content -->
         <main class="p-6 overflow-auto space-y-8 animate-fade-in">
-
-            <!-- Metric Cards -->
+            <!-- Metrics -->
             <section class="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
                 <div class="bg-white p-6 rounded-lg border hover:shadow transition transform hover:scale-105">
                     <h3 class="text-xs font-medium text-gray-500 uppercase">Processed Jobs</h3>
@@ -89,109 +82,141 @@
                 </div>
             </section>
 
-            <!-- Command Palette Overlay -->
-            <div id="cmd-palette" class="fixed inset-0 hidden items-start justify-center p-6 bg-black bg-opacity-50 z-50">
-                <div class="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-                    <input id="cmd-input"
-                           type="text"
-                           placeholder="Type a command… (e.g. “Overview”)"
-                           class="w-full px-4 py-2 border-b border-gray-200 dark:border-gray-700 focus:outline-none bg-transparent text-gray-900 dark:text-gray-100"
-                    />
-                    <ul id="cmd-list" class="max-h-60 overflow-auto">
-                        <!-- JS will inject <li> items here -->
-                    </ul>
+            <!-- Editor -->
+            <section id="code-editor" class="bg-white p-6 rounded-lg border shadow-sm grid gap-6 lg:grid-cols-2">
+                <div class="flex flex-col">
+                    <label for="editor" class="block text-sm font-medium text-gray-700 mb-2">Code</label>
+                    <div id="editor"></div>
+                    <button id="run-code" class="mt-4 self-start inline-flex items-center bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition disabled:opacity-50">
+                        <svg class="h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-6.518-3.759A1 1 0 006 8.254v7.492a1 1 0 001.234.97l6.518-1.897a1 1 0 00.752-.97v-2.722a1 1 0 00-.752-.97z"/>
+                        </svg>
+                        <span id="run-label">Run</span>
+                    </button>
+                    <p id="status" class="mt-2 text-sm text-gray-600">Idle</p>
                 </div>
-            </div>
+                <div id="code-output" class="border border-gray-300 rounded p-4 bg-gray-50 overflow-auto h-64"></div>
+                <!-- Dependencies (collapsed by default) -->
+                <details id="deps-block" class="mt-4">
+                    <summary class="cursor-pointer text-sm font-medium text-gray-700 select-none">
+                        pom.xml (dependencies) – optional
+                    </summary>
 
+                    <!-- Looks/feels like editing a pom.xml fragment -->
+                    <textarea id="pom-editor"
+                              class="w-full h-40 mt-2 p-2 font-mono text-sm bg-gray-50 border border-gray-300 rounded whitespace-pre resize-y"
+                              placeholder="&lt;dependencies&gt;
+    &lt;dependency&gt;
+        &lt;groupId&gt;org.apache.commons&lt;/groupId&gt;
+        &lt;artifactId&gt;commons-lang3&lt;/artifactId&gt;
+        &lt;version&gt;3.14.0&lt;/version&gt;
+    &lt;/dependency&gt;
+&lt;/dependencies&gt;"></textarea>
+                </details>
+
+            </section>
+
+            <!-- Monaco -->
             <script>
-                const commands = [
-                    { name: 'Overview',    href: '#overview' },
-                    { name: 'Settings',    href: '#settings' },
-                    { name: 'New Project', href: '#new-project' },
-                    // …add your own
-                ];
-                const palette = document.getElementById('cmd-palette');
-                const input   = document.getElementById('cmd-input');
-                const list    = document.getElementById('cmd-list');
-                let selectedIdx = 0;
-
-                // Build list items
-                function refreshList(filter = '') {
-                    list.innerHTML = '';
-                    const filtered = commands.filter(c => c.name.toLowerCase().includes(filter.toLowerCase()));
-                    filtered.forEach(c => {
-                        const li = document.createElement('li');
-                        li.className = 'px-4 py-2 cursor-pointer';
-                        li.textContent = c.name;
-                        li.onclick = () => window.location = c.href;
-                        list.appendChild(li);
-                    });
-                    selectedIdx = 0;
-                    updateSelection();
-                }
-
-                function updateSelection() {
-                    [...list.children].forEach((li, idx) => {
-                        li.classList.toggle('bg-gray-100', idx === selectedIdx);
-                        li.classList.toggle('dark:bg-gray-700', idx === selectedIdx);
-                    });
-                }
-
-                // Toggle palette on Cmd+K / Ctrl+K
-                document.addEventListener('keydown', e => {
-                    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-                        e.preventDefault();
-                        palette.classList.toggle('hidden');
-                        if (!palette.classList.contains('hidden')) {
-                            input.focus();
-                            refreshList();
-                        }
-                        return;
-                    }
-
-                    if (!palette.classList.contains('hidden')) {
-                        if (e.key === 'Escape') {
-                            palette.classList.add('hidden');
-                        } else if (e.key === 'ArrowDown') {
-                            selectedIdx = Math.min(selectedIdx + 1, list.children.length - 1);
-                            updateSelection();
-                            e.preventDefault();
-                        } else if (e.key === 'ArrowUp') {
-                            selectedIdx = Math.max(selectedIdx - 1, 0);
-                            updateSelection();
-                            e.preventDefault();
-                        } else if (e.key === 'Enter') {
-                            list.children[selectedIdx]?.click();
-                            e.preventDefault();
-                        }
-                    }
-                });
-
-                // Filter as you type
-                input.addEventListener('input', () => {
-                    refreshList(input.value);
-                });
-
-                async function loadMetrics() {
-                    try {
-                        const res = await fetch('/api/dashboard');
-                        if (!res.ok) return;
-                        const data = await res.json();
-                        document.getElementById('metric-processed').textContent = data.itemCount;
-                        document.getElementById('metric-size').textContent = data.tableSizeKbytes + 'Kb';
-                        document.getElementById('metric-last').textContent = data.lastProcessedTimestamp;
-                        document.getElementById('metric-errors').textContent = data.errors;
-                    } catch (err) {
-                        console.error('Failed to load metrics', err);
-                    }
-                }
-
-                document.addEventListener('DOMContentLoaded', () => {
-                    loadMetrics();
-                    setInterval(loadMetrics, 10000);
+                require.config({paths:{vs:'https://cdn.jsdelivr.net/npm/monaco-editor@0.47.0/min/vs'}});
+                require(['vs/editor/editor.main'],function(){
+                    window.editor=monaco.editor.create(document.getElementById('editor'),{
+                        value:`public class Job {\n    public void runner() {\n        System.out.println("Logic goes here...");\n    }\n}`,
+                        language:'java',theme:'vs-light',automaticLayout:true,tabSize:4,insertSpaces:true,lineNumbers:'on',
+                        minimap:{enabled:false},quickSuggestions:true,suggestOnTriggerCharacters:true,acceptSuggestionOnEnter:'on',
+                        parameterHints:{enabled:true}});
                 });
             </script>
 
+            <!-- Run / Poll -->
+            <script th:inline="javascript">
+                /*<![CDATA[*/
+                (function () {
+                    const btn    = document.getElementById('run-code');
+                    const label  = document.getElementById('run-label');
+                    const status = document.getElementById('status');
+                    const output = document.getElementById('code-output');
+
+                    /* Thymeleaf inlines the real token; empty string is the fallback when not logged in */
+                    const token  = /*[[${session.token}]]*/ '';
+
+                    /* Extract groupId:artifactId:version from a pasted pom-fragment */
+                    /* Extract groupId:artifactId[:version] from pom-fragment  */
+                    function parsePomDependencies(xml) {
+                        const deps = [];
+                        const rx = /<dependency>[\s\S]*?<groupId>(.*?)<\/groupId>[\s\S]*?<artifactId>(.*?)<\/artifactId>(?:[\s\S]*?<version>(.*?)<\/version>)?[\s\S]*?<\/dependency>/gi;
+                        let m;
+                        while ((m = rx.exec(xml)) !== null) {
+                            const coord = m[3] && m[3].trim()
+                                ? `${m[1]}:${m[2]}:${m[3]}`
+                                : `${m[1]}:${m[2]}`;          // version omitted
+                            deps.push(coord);
+                        }
+                        return deps;
+                    }
+
+
+                    function setRunning(r) {
+                        btn.disabled = r;
+                        label.textContent = r ? 'Running…' : 'Run';
+                        if (r) status.textContent = 'Submitting job…';
+                    }
+
+                    async function poll(jobId) {
+                        try {
+                            const res  = await fetch(`/code-execution?token=${encodeURIComponent(token)}&id=${jobId}`);
+                            const json = await res.json();
+                            status.textContent = `Status: ${json.status}`;
+                            if (json.status === 'job_pending') return setTimeout(() => poll(jobId), 1000);
+
+                            output.innerHTML =
+                                json.status === 'success'
+                                    ? json.output
+                                    : `<pre class="text-red-600">${json.error || 'Unknown error'}</pre>`;
+                        } catch (e) {
+                            output.innerHTML = `<pre class="text-red-600">${e.message}</pre>`;
+                            status.textContent = 'Error';
+                        } finally {
+                            if (status.textContent !== 'Status: job_pending') setRunning(false);
+                        }
+                    }
+
+                    btn.addEventListener('click', async () => {
+                        setRunning(true);
+                        output.innerHTML = '';
+
+                        const pomText = document.getElementById('pom-editor').value;
+
+                        try {
+                            const res = await fetch(
+                                `/code-execution?token=${encodeURIComponent(token)}`,
+                                {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({
+                                        code: window.editor.getValue(),
+                                        dependencies: parsePomDependencies(pomText)
+                                    })
+                                }
+                            );
+
+                            if (!res.ok) {
+                                if (res.status === 401) throw new Error('You are not authorized for code execution');
+                                throw new Error(`Server error ${res.status}`);
+                            }
+
+                            const json = await res.json();
+                            if (!json.jobId) throw new Error('No jobId returned');
+                            poll(json.jobId);
+                        } catch (e) {
+                            output.innerHTML   = `<pre class="text-red-600">${e.message}</pre>`;
+                            status.textContent = 'Error';
+                            setRunning(false);
+                        }
+                    });
+                })();
+                /*]]>*/
+            </script>
 
         </main>
     </div>

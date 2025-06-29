@@ -23,6 +23,7 @@ public class AuthController {
 
     @GetMapping("/logout")
     public String logout(HttpSession session) {
+        session.setAttribute("token", null);
         session.invalidate();
         return "index";
     }

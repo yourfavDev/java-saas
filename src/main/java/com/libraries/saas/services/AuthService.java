@@ -36,7 +36,7 @@ public class AuthService {
             List<String> roles = userInfo.roles().orElse(Collections.emptyList());
             session.setAttribute("roles", roles);
             session.setAttribute("user", creds.username());
-            session.setAttribute("token", userToken);
+            session.setAttribute("token", userToken.accessToken());
 
             log.info("User {} logged in successfully", creds.username());
             return true;
